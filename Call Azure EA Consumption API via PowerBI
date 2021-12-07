@@ -1,0 +1,29 @@
+let
+    sd=UsageStartDate,
+    ed=UsageEndDate,
+ Source = Json.Document(Web.Contents(url, [Headers=[Authorization="Bearer "&APIKey&""]])),
+ iterations = 20000,      
+ url = "https://consumption.azure.com/v3/enrollments/"& EnrollmentNumber & "/usagedetailsbycustomdate?startTime="&sd&"&endTime="&ed&"", 
+ 
+ FnGetOnePage =
+  (url) as record =>
+   let
+    Source = Json.Document(Web.Contents(url, [Headers=[Authorization="Bearer "&APIKey&""]])),
+    data = try Source[data] otherwise null, 
+    next = try Source[nextLink] otherwise null, 
+    res = [Data=data, Next=next]
+   in
+    res,
+ 
+ GeneratedList =
+  List.Generate(
+   ()=>[i=0, res = FnGetOnePage(url)],
+   each [i]<iterations and [res][Data]<>null,
+   each [i=[i]+1, res = FnGetOnePage([res][Next])],
+   each [res][Data]),
+  #"Convert to table" = Table.FromList(GeneratedList, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+    #"Expanded Column1" = Table.ExpandListColumn(#"Convert to table", "Column1"),
+    #"Expanded Column2" = Table.ExpandRecordColumn(#"Expanded Column1", "Column1", {"serviceName", "serviceTier", "location", "chargesBilledSeparately", "partNumber", "resourceGuid", "offerId", "cost", "accountId", "productId", "resourceLocationId", "consumedServiceId", "departmentId", "accountOwnerEmail", "accountName", "serviceAdministratorId", "subscriptionId", "subscriptionGuid", "subscriptionName", "date", "product", "meterId", "meterCategory", "meterSubCategory", "meterRegion", "meterName", "consumedQuantity", "resourceRate", "resourceLocation", "consumedService", "instanceId", "serviceInfo1", "serviceInfo2", "additionalInfo", "tags", "storeServiceIdentifier", "departmentName", "costCenter", "unitOfMeasure", "resourceGroup"}, {"Column1.serviceName", "Column1.serviceTier", "Column1.location", "Column1.chargesBilledSeparately", "Column1.partNumber", "Column1.resourceGuid", "Column1.offerId", "Column1.cost", "Column1.accountId", "Column1.productId", "Column1.resourceLocationId", "Column1.consumedServiceId", "Column1.departmentId", "Column1.accountOwnerEmail", "Column1.accountName", "Column1.serviceAdministratorId", "Column1.subscriptionId", "Column1.subscriptionGuid", "Column1.subscriptionName", "Column1.date", "Column1.product", "Column1.meterId", "Column1.meterCategory", "Column1.meterSubCategory", "Column1.meterRegion", "Column1.meterName", "Column1.consumedQuantity", "Column1.resourceRate", "Column1.resourceLocation", "Column1.consumedService", "Column1.instanceId", "Column1.serviceInfo1", "Column1.serviceInfo2", "Column1.additionalInfo", "Column1.tags", "Column1.storeServiceIdentifier", "Column1.departmentName", "Column1.costCenter", "Column1.unitOfMeasure", "Column1.resourceGroup"})
+    
+in
+    #"Expanded Column2"
